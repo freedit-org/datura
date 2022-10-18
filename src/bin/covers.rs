@@ -4,9 +4,9 @@ use std::{
     io::{copy, BufRead, BufReader},
     path::PathBuf,
     sync::Arc,
-    time::Duration,
 };
 
+use datura::CLIENT;
 use tokio::sync::Semaphore;
 
 #[tokio::main]
@@ -42,24 +42,18 @@ async fn main() {
     let mut handers = Vec::with_capacity(urls.len());
     let semaphore = Arc::new(Semaphore::new(500));
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .unwrap();
-
     for i in urls.into_values() {
         if !i.is_empty() {
             let permit = semaphore.clone().acquire_owned().await.unwrap();
             let out_path = out_path.clone();
-            let client = client.clone();
             let h = tokio::spawn(async move {
                 println!("{}", &i);
 
-                let mut response = client.get(&i).send().await;
+                let mut response = CLIENT.get(&i).send().await;
                 let mut cnt = 0;
                 while response.is_err() {
                     println!("{:?}", response);
-                    response = client.get(&i).send().await;
+                    response = CLIENT.get(&i).send().await;
                     cnt += 1;
                     if cnt >= 2 {
                         break;

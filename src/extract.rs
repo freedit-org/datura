@@ -1,4 +1,4 @@
-use bincode::Encode;
+use bincode::{Decode, Encode};
 use once_cell::sync::Lazy;
 use scraper::{Html, Selector};
 
@@ -21,10 +21,10 @@ static SPAN: Lazy<Selector> = Lazy::new(|| Selector::parse(SPAN_STR).unwrap());
 static TAG: Lazy<Selector> = Lazy::new(|| Selector::parse(TAG_STR).unwrap());
 static DESC: Lazy<Selector> = Lazy::new(|| Selector::parse(DESC_STR).unwrap());
 
-#[derive(Debug, Encode)]
+#[derive(Debug, Encode, Decode)]
 pub struct Book {
     title: String,
-    cover: Option<String>,
+    pub cover: Option<String>,
     source: Option<String>,
     isbn: Option<String>,
     authors: Vec<String>,

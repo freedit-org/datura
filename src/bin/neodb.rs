@@ -1,6 +1,7 @@
 use bincode::config::standard;
-use datura::{config::CONFIG, extract::Book, ivec_to_u32, u32_to_ivec};
-use std::{sync::Arc, time::Duration};
+use datura::{config::CONFIG, extract::Book, ivec_to_u32, u32_to_ivec, CLIENT};
+use reqwest::StatusCode;
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::Semaphore;
 use tracing::{error, info};
 use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt};
@@ -17,7 +18,8 @@ async fn main() {
     let db = config.open().unwrap();
     info!(%db_url);
 
-    let db_max_id = if let Some((k, _)) = db.last().unwrap() {
+    let books_tree = db.open_tree("books").unwrap();
+    let db_max_id = if let Some((k, _)) = books_tree.last().unwrap() {
         ivec_to_u32(&k)
     } else {
         0
@@ -31,11 +33,13 @@ async fn main() {
     info!(%min_id);
     info!(%max_id);
 
+    let book_404_tree = db.open_tree("book_404").unwrap();
     let mut ids = vec![];
-    let tree = db.open_tree("books").unwrap();
-    for i in min_id..=max_id {
-        if !tree.contains_key(u32_to_ivec(i)).unwrap() {
-            ids.push(i);
+    for id in min_id..=max_id {
+        if !books_tree.contains_key(u32_to_ivec(id)).unwrap()
+            && !book_404_tree.contains_key(u32_to_ivec(id)).unwrap()
+        {
+            ids.push(id);
         }
     }
 
@@ -49,14 +53,16 @@ async fn main() {
         .build()
         .unwrap();
 
-    for i in ids {
+    for id in ids {
+        let book_404_tree = book_404_tree.clone();
         let permit = semaphore.clone().acquire_owned().await.unwrap();
         let client = client.clone();
-        let tree = tree.clone();
-        let h = tokio::spawn(async move {
-            info!("{}", &i);
+        let books_tree = books_tree.clone();
 
-            let url = format!("{site}/{i}");
+        let h = tokio::spawn(async move {
+            info!("{}", &id);
+
+            let url = format!("{site}/{id}");
             let mut response = client.get(&url).send().await;
             let mut cnt = 0;
             while response.is_err() {
@@ -74,8 +80,11 @@ async fn main() {
                         let content = r.text().await.unwrap();
                         let book = Book::from(content.as_ref());
                         let encoded = bincode::encode_to_vec(&book, standard()).unwrap();
-                        tree.insert(u32_to_ivec(i), encoded).unwrap();
-                        info!("finished {}", &i);
+                        books_tree.insert(u32_to_ivec(id), encoded).unwrap();
+                        info!("finished {}", &id);
+                    } else if r.status() == StatusCode::NOT_FOUND {
+                        error!("{} 404 not found", id);
+                        book_404_tree.insert(u32_to_ivec(id), &[]).unwrap();
                     } else {
                         error!("{:?}", r);
                     }
@@ -88,7 +97,73 @@ async fn main() {
         handers.push(h);
     }
 
-    for i in handers {
-        i.await.unwrap();
+    for h in handers {
+        h.await.unwrap();
+    }
+
+    // download cover
+    let dir = PathBuf::from(&CONFIG.book_cover_path);
+    if !dir.exists() {
+        std::fs::create_dir_all(&dir).unwrap();
+    }
+
+    let mut ids = vec![];
+    let book_covers_tree = db.open_tree("book_covers").unwrap();
+    for id in min_id..=max_id {
+        if !book_covers_tree.contains_key(u32_to_ivec(id)).unwrap()
+            && !book_404_tree.contains_key(u32_to_ivec(id)).unwrap()
+        {
+            ids.push(id);
+        }
+    }
+
+    info!("ids.len = {}", ids.len());
+
+    let mut handers = vec![];
+    for id in ids {
+        let books_tree = books_tree.clone();
+        let book_covers_tree = book_covers_tree.clone();
+        let permit = semaphore.clone().acquire_owned().await.unwrap();
+        let h = tokio::spawn(async move {
+            info!("{}", &id);
+            if let Some(v) = books_tree.get(u32_to_ivec(id)).unwrap() {
+                let (book, _): (Book, usize) = bincode::decode_from_slice(&v, standard()).unwrap();
+                if let Some(cover) = book.cover {
+                    let url = format!("https://neodb.social{cover}");
+                    let ext = url.rsplit_once('.').unwrap().1;
+                    let mut response = CLIENT.get(&url).send().await;
+
+                    let mut cnt = 0;
+                    while response.is_err() {
+                        error!("{:?}", response);
+                        response = CLIENT.get(&url).send().await;
+                        cnt += 1;
+                        if cnt >= 2 {
+                            break;
+                        }
+                    }
+
+                    if let Ok(r) = response {
+                        if r.status().is_success() {
+                            let fpath = format!("{}/{}.{}", &CONFIG.book_cover_path, id, ext);
+                            let content = r.bytes().await.unwrap();
+                            tokio::fs::write(fpath, content).await.unwrap();
+                            book_covers_tree.insert(u32_to_ivec(id), &[]).unwrap();
+                            info!("finished {}", &id);
+                        } else {
+                            error!("{:?}", r);
+                        }
+                    } else {
+                        error!("{:?}", response);
+                    }
+                }
+            }
+            drop(permit);
+        });
+        handers.push(h);
+    }
+
+    for h in handers {
+        h.await.unwrap();
     }
 }

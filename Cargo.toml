@@ -9,7 +9,7 @@ once_cell = "*"
 reqwest = { version = "*", features = ["rustls"] }
 scraper = { version = "0.13.0", default-features = false }
 sled = { version = "0.34.7", features = ["compression"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs"] }
 tracing = { version = "0.1", features = ["release_max_level_info", "max_level_info"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = { version = "1.0", features = ["derive"] }
