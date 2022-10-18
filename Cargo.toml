@@ -4,11 +4,7 @@ version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-reqwest = "*"
+once_cell = "*"
+reqwest = { version = "*", features = ["rustls"], default-features = false }
+scraper = { version = "0.13.0", default-features = false }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-
-[[bin]]
-name = "covers"
-
-[[bin]]
-name = "neodb"

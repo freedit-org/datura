@@ -33,7 +33,7 @@ async fn main() {
 
     // skip the downloaded urls
     dbg!(urls.len());
-    urls.retain(|k, _| !&dir.join(&k).is_file());
+    urls.retain(|k, _| !&dir.join(k).is_file());
     dbg!(urls.len());
 
     let mut handers = Vec::with_capacity(urls.len());
