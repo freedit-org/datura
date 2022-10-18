@@ -12,7 +12,9 @@ use tokio::sync::Semaphore;
 #[tokio::main]
 async fn main() {
     // read img urls
-    let file = File::open("zlib2_covers_zh.txt").unwrap();
+    let mut args = std::env::args();
+    let fpath = args.nth(1).expect("file path not found");
+    let file = File::open(fpath).unwrap();
     let r = BufReader::new(file);
 
     let mut urls = HashMap::new();
@@ -24,8 +26,9 @@ async fn main() {
         }
     }
 
-    let path = "zh_covers";
-    let dir = PathBuf::from(path);
+    let out_path = args.next().expect("file path not found");
+    let dir = PathBuf::from(&out_path);
+    let out_path = Arc::new(out_path);
 
     if !dir.exists() {
         fs::create_dir_all(&dir).unwrap();
@@ -47,6 +50,7 @@ async fn main() {
     for i in urls.into_values() {
         if !i.is_empty() {
             let permit = semaphore.clone().acquire_owned().await.unwrap();
+            let out_path = out_path.clone();
             let client = client.clone();
             let h = tokio::spawn(async move {
                 println!("{}", &i);
@@ -74,7 +78,7 @@ async fn main() {
 
                             println!("file to download: '{}'", fname);
 
-                            let fpath = format!("{path}/{fname}");
+                            let fpath = format!("{out_path}/{fname}");
 
                             File::create(fpath).unwrap()
                         };

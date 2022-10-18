@@ -1,5 +1,4 @@
-use std::fs;
-
+use bincode::Encode;
 use once_cell::sync::Lazy;
 use scraper::{Html, Selector};
 
@@ -22,14 +21,8 @@ static SPAN: Lazy<Selector> = Lazy::new(|| Selector::parse(SPAN_STR).unwrap());
 static TAG: Lazy<Selector> = Lazy::new(|| Selector::parse(TAG_STR).unwrap());
 static DESC: Lazy<Selector> = Lazy::new(|| Selector::parse(DESC_STR).unwrap());
 
-fn main() {
-    let html = fs::read_to_string("1.html").unwrap();
-    let book = Book::from(html.as_str());
-    dbg!(&book);
-}
-
-#[derive(Debug)]
-struct Book {
+#[derive(Debug, Encode)]
+pub struct Book {
     title: String,
     cover: Option<String>,
     source: Option<String>,
@@ -46,13 +39,13 @@ struct Book {
     pages: Option<String>,
     other_info: Option<String>,
     tags: Vec<String>,
-    description: String,
-    content: String,
+    description: Option<String>,
+    content: Option<String>,
 }
 
 impl From<&str> for Book {
     fn from(html: &str) -> Self {
-        let fragment = Html::parse_fragment(&html);
+        let fragment = Html::parse_fragment(html);
 
         let title = fragment
             .select(&TITLE)
@@ -93,11 +86,12 @@ impl From<&str> for Book {
             .next()
             .map(|ele| ele.inner_html().trim_start_matches("ISBN：").to_owned());
 
-        let mut authors = vec![];
-        let span = Selector::parse(r#"span"#).unwrap();
-        for s in div_ele.next().unwrap().select(&span) {
-            authors.push(s.inner_html())
-        }
+        let authors = div_ele
+            .next()
+            .unwrap()
+            .select(&SPAN)
+            .map(|ele| ele.inner_html())
+            .collect();
 
         let publisher = div_ele
             .next()
@@ -107,12 +101,12 @@ impl From<&str> for Book {
             .next()
             .map(|ele| ele.inner_html().trim_start_matches("副标题：").to_owned());
 
-        let mut translators = vec![];
-        div_ele
+        let translators = div_ele
             .next()
             .unwrap()
             .select(&SPAN)
-            .for_each(|ele| translators.push(ele.inner_html()));
+            .map(|ele| ele.inner_html())
+            .collect();
 
         let original_title = div_ele
             .next()
@@ -143,16 +137,15 @@ impl From<&str> for Book {
 
         let other_info = div_ele.next().map(|ele| ele.inner_html().trim().to_owned());
 
-        let mut tags = vec![];
-        for i in fragment.select(&TAG) {
-            let tag = i.select(&A).next().unwrap().inner_html();
-            tags.push(tag);
-        }
+        let tags = fragment
+            .select(&TAG)
+            .map(|ele| ele.select(&A).next().unwrap().inner_html())
+            .collect();
 
         let mut div_ele = fragment.select(&DESC);
-        let description = div_ele.next().unwrap().inner_html().trim().to_owned();
+        let description = div_ele.next().map(|ele| ele.inner_html().trim().to_owned());
 
-        let content = div_ele.next().unwrap().inner_html().trim().to_owned();
+        let content = div_ele.next().map(|ele| ele.inner_html().trim().to_owned());
 
         Book {
             title,
