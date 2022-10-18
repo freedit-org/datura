@@ -60,8 +60,6 @@ async fn main() {
         let books_tree = books_tree.clone();
 
         let h = tokio::spawn(async move {
-            info!("{}", &id);
-
             let url = format!("{site}/{id}");
             let mut response = client.get(&url).send().await;
             let mut cnt = 0;
@@ -81,7 +79,9 @@ async fn main() {
                         let book = Book::from(content.as_ref());
                         let encoded = bincode::encode_to_vec(&book, standard()).unwrap();
                         books_tree.insert(u32_to_ivec(id), encoded).unwrap();
-                        info!("finished {}", &id);
+                        if id % 100 == 0 {
+                            info!("finished {}", &id);
+                        }
                     } else if r.status() == StatusCode::NOT_FOUND {
                         error!("{} 404 not found", id);
                         book_404_tree.insert(u32_to_ivec(id), &[]).unwrap();
@@ -125,7 +125,6 @@ async fn main() {
         let book_covers_tree = book_covers_tree.clone();
         let permit = semaphore.clone().acquire_owned().await.unwrap();
         let h = tokio::spawn(async move {
-            info!("{}", &id);
             if let Some(v) = books_tree.get(u32_to_ivec(id)).unwrap() {
                 let (book, _): (Book, usize) = bincode::decode_from_slice(&v, standard()).unwrap();
                 if let Some(cover) = book.cover {
@@ -149,7 +148,9 @@ async fn main() {
                             let content = r.bytes().await.unwrap();
                             tokio::fs::write(fpath, content).await.unwrap();
                             book_covers_tree.insert(u32_to_ivec(id), &[]).unwrap();
-                            info!("finished {}", &id);
+                            if id % 100 == 0 {
+                                info!("finished {}", &id);
+                            }
                         } else {
                             error!("{:?}", r);
                         }
