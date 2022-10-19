@@ -244,7 +244,7 @@ impl From<&str> for Movie {
 
         let imdb = div_ele
             .next()
-            .map(|ele| ele.select(&A).next().unwrap().inner_html());
+            .and_then(|ele| ele.select(&A).next().map(|a| a.inner_html()));
 
         let directors = fragment
             .select(&DIRECTOR)

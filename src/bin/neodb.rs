@@ -130,7 +130,6 @@ async fn main() {
         let movie_covers_tree = movie_covers_tree.clone();
         let permit = semaphore.clone().acquire_owned().await.unwrap();
         let h = tokio::spawn(async move {
-            info!(id);
             if let Some(v) = movies_tree.get(u32_to_ivec(id)).unwrap() {
                 let (movie, _): (Movie, usize) =
                     bincode::decode_from_slice(&v, standard()).unwrap();
