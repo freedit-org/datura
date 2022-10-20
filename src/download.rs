@@ -41,7 +41,7 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
             info!(%db_max_id);
             db_max_id
         } else {
-            0
+            1
         };
 
         let ids: Vec<u32> = (min_id..=max_id)
@@ -61,7 +61,7 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
         let mut response = CLIENT.get(&url).send().await;
         let mut cnt = 0;
         while response.is_err() {
-            error!("{:?}", response.unwrap_err());
+            error!("{}", response.unwrap_err());
             response = CLIENT.get(&url).send().await;
             cnt += 1;
             if cnt >= 2 {
@@ -87,10 +87,10 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
                     error!("404 not found");
                     db_404.insert(u32_to_ivec(id), &[]).unwrap();
                 } else {
-                    error!("{:?}", r);
+                    error!(?r);
                 }
             }
-            Err(e) => error!("{:?}", e),
+            Err(e) => error!(%e),
         }
     }
 
@@ -111,7 +111,7 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
             let mut response = CLIENT.get(&url).send().await;
             let mut cnt = 0;
             while response.is_err() {
-                error!("{:?}", response);
+                error!(?response);
                 response = CLIENT.get(&url).send().await;
                 cnt += 1;
                 if cnt >= 2 {
@@ -119,24 +119,25 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
                 }
             }
 
-            if let Ok(r) = response {
-                if r.status().is_success() {
-                    let fpath = format!("{}/{}.{}", cover_path, id, ext);
-                    match r.bytes().await {
-                        Ok(content) => {
-                            tokio::fs::write(fpath, content).await.unwrap();
-                            db_cover.insert(u32_to_ivec(id), &[]).unwrap();
-                            if id % 100 == 0 {
-                                info!("finished {}", &id);
+            match response {
+                Ok(r) => {
+                    if r.status().is_success() {
+                        let fpath = format!("{}/{}.{}", cover_path, id, ext);
+                        match r.bytes().await {
+                            Ok(content) => {
+                                tokio::fs::write(fpath, content).await.unwrap();
+                                db_cover.insert(u32_to_ivec(id), &[]).unwrap();
+                                if id % 100 == 0 {
+                                    info!("finished {}", &id);
+                                }
                             }
+                            Err(e) => error!(%e),
                         }
-                        Err(e) => error!(%e),
+                    } else {
+                        error!(?r);
                     }
-                } else {
-                    error!("{:?}", r);
                 }
-            } else {
-                error!("{:?}", response);
+                Err(e) => error!(%e),
             }
         };
     }
