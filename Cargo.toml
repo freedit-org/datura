@@ -4,16 +4,17 @@ version = "0.0.1"
 edition = "2021"
 
 [dependencies]
+async-trait = "*"
 bincode = "2.0.0-rc.2"
 once_cell = "*"
 reqwest = { version = "*", features = ["rustls"] }
 scraper = { version = "0.13.0", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
 sled = { version = "0.34.7", features = ["compression"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs"] }
+toml = "0.5"
 tracing = { version = "0.1", features = ["release_max_level_info", "max_level_info"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.5"
 
 [profile.release]
 lto = true

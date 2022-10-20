@@ -4,6 +4,7 @@ use sled::IVec;
 use std::time::Duration;
 
 pub mod config;
+pub mod download;
 pub mod extract;
 
 /// convert `u32` to [IVec]
@@ -18,7 +19,7 @@ pub fn ivec_to_u32(iv: &IVec) -> u32 {
 
 pub static CLIENT: Lazy<Client> = Lazy::new(|| {
     Client::builder()
-        .timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(20))
         .build()
         .unwrap()
 });
