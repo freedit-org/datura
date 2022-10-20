@@ -1,13 +1,18 @@
-use crate::{
-    extract::{Book, Movie},
-    ivec_to_u32, u32_to_ivec, CLIENT,
-};
+use crate::extract::{Book, Movie};
 use async_trait::async_trait;
 use bincode::{config::standard, Decode, Encode};
-use reqwest::StatusCode;
-use sled::Tree;
-use std::fmt::Debug;
+use once_cell::sync::Lazy;
+use reqwest::{Client, StatusCode};
+use sled::{IVec, Tree};
+use std::{fmt::Debug, time::Duration};
 use tracing::{error, info, instrument};
+
+pub static CLIENT: Lazy<Client> = Lazy::new(|| {
+    Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .unwrap()
+});
 
 pub trait Cover {
     fn cover(self) -> Option<String>;
@@ -56,7 +61,7 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
         let mut response = CLIENT.get(&url).send().await;
         let mut cnt = 0;
         while response.is_err() {
-            error!("{:?}", response);
+            error!("{:?}", response.unwrap_err());
             response = CLIENT.get(&url).send().await;
             cnt += 1;
             if cnt >= 2 {
@@ -67,12 +72,16 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
         match response {
             Ok(r) => {
                 if r.status().is_success() {
-                    let content = r.text().await.unwrap();
-                    let one = Self::from(content.as_ref());
-                    let encoded = bincode::encode_to_vec(&one, standard()).unwrap();
-                    db.insert(u32_to_ivec(id), encoded).unwrap();
-                    if id % 100 == 0 {
-                        info!("finished.");
+                    match r.text().await {
+                        Ok(content) => {
+                            let one = Self::from(content.as_ref());
+                            let encoded = bincode::encode_to_vec(&one, standard()).unwrap();
+                            db.insert(u32_to_ivec(id), encoded).unwrap();
+                            if id % 100 == 0 {
+                                info!("finished.");
+                            }
+                        }
+                        Err(e) => error!(%e),
                     }
                 } else if r.status() == StatusCode::NOT_FOUND {
                     error!("404 not found");
@@ -113,11 +122,15 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
             if let Ok(r) = response {
                 if r.status().is_success() {
                     let fpath = format!("{}/{}.{}", cover_path, id, ext);
-                    let content = r.bytes().await.unwrap();
-                    tokio::fs::write(fpath, content).await.unwrap();
-                    db_cover.insert(u32_to_ivec(id), &[]).unwrap();
-                    if id % 100 == 0 {
-                        info!("finished {}", &id);
+                    match r.bytes().await {
+                        Ok(content) => {
+                            tokio::fs::write(fpath, content).await.unwrap();
+                            db_cover.insert(u32_to_ivec(id), &[]).unwrap();
+                            if id % 100 == 0 {
+                                info!("finished {}", &id);
+                            }
+                        }
+                        Err(e) => error!(%e),
                     }
                 } else {
                     error!("{:?}", r);
@@ -131,3 +144,13 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
 
 impl Web for Movie {}
 impl Web for Book {}
+
+/// convert `u32` to [IVec]
+fn u32_to_ivec(number: u32) -> IVec {
+    IVec::from(number.to_be_bytes().to_vec())
+}
+
+/// convert [IVec] to u32
+fn ivec_to_u32(iv: &IVec) -> u32 {
+    u32::from_be_bytes(iv.to_vec().as_slice().try_into().unwrap())
+}

@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use datura::CLIENT;
+use datura::download::CLIENT;
 use tokio::sync::Semaphore;
 
 #[tokio::main]
