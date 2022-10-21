@@ -34,24 +34,24 @@ static ACTOR: Lazy<Selector> = Lazy::new(|| Selector::parse(ACTOR_STR).unwrap())
 
 #[derive(Debug, Encode, Decode)]
 pub struct Book {
-    title: String,
+    pub title: String,
     pub cover: Option<String>,
-    source: Option<String>,
-    isbn: Option<String>,
-    authors: Vec<String>,
-    publisher: Option<String>,
-    subtitle: Option<String>,
-    translators: Vec<String>,
-    original_title: Option<String>,
-    language: Option<String>,
-    pub_time: Option<String>,
-    bookformat: Option<String>,
-    price: Option<String>,
-    pages: Option<String>,
-    other_info: Option<String>,
-    tags: Vec<String>,
-    description: Option<String>,
-    content: Option<String>,
+    pub source: Option<String>,
+    pub isbn: Option<String>,
+    pub authors: Vec<String>,
+    pub publisher: Option<String>,
+    pub subtitle: Option<String>,
+    pub translators: Vec<String>,
+    pub original_title: Option<String>,
+    pub language: Option<String>,
+    pub pub_time: Option<String>,
+    pub bookformat: Option<String>,
+    pub price: Option<String>,
+    pub pages: Option<String>,
+    pub other_info: Option<String>,
+    pub tags: Vec<String>,
+    pub description: Option<String>,
+    pub content: Option<String>,
 }
 
 impl From<&str> for Book {
@@ -74,7 +74,8 @@ impl From<&str> for Book {
             .unwrap()
             .value()
             .attr("href")
-            .map(|s| s.to_owned());
+            .map(|s| s.to_owned())
+            .and_then(empty2none);
 
         let source = fragment
             .select(&H5)
@@ -85,7 +86,8 @@ impl From<&str> for Book {
             .unwrap()
             .value()
             .attr("href")
-            .map(|s| s.to_owned());
+            .map(|s| s.to_owned())
+            .and_then(empty2none);
 
         // details
         let mut details = fragment.select(&DETAILS);
@@ -95,7 +97,8 @@ impl From<&str> for Book {
 
         let isbn = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("ISBN：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("ISBN：").to_owned())
+            .and_then(empty2none);
 
         let authors = div_ele
             .next()
@@ -106,11 +109,13 @@ impl From<&str> for Book {
 
         let publisher = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("出版社：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("出版社：").to_owned())
+            .and_then(empty2none);
 
         let subtitle = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("副标题：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("副标题：").to_owned())
+            .and_then(empty2none);
 
         let translators = div_ele
             .next()
@@ -121,32 +126,41 @@ impl From<&str> for Book {
 
         let original_title = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("原作名：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("原作名：").to_owned())
+            .and_then(empty2none);
 
         let language = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("语言：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("语言：").to_owned())
+            .and_then(empty2none);
 
         let pub_time = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("出版时间：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("出版时间：").to_owned())
+            .and_then(empty2none);
 
         // second parts
         let mut div_ele = details.next().unwrap().select(&DIV);
 
         let bookformat = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("装帧：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("装帧：").to_owned())
+            .and_then(empty2none);
 
         let price = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("定价：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("定价：").to_owned())
+            .and_then(empty2none);
 
         let pages = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("页数：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("页数：").to_owned())
+            .and_then(empty2none);
 
-        let other_info = div_ele.next().map(|ele| ele.inner_html().trim().to_owned());
+        let other_info = div_ele
+            .next()
+            .map(|ele| ele.inner_html().trim().to_owned())
+            .and_then(empty2none);
 
         let tags = fragment
             .select(&TAG)
@@ -154,9 +168,15 @@ impl From<&str> for Book {
             .collect();
 
         let mut div_ele = fragment.select(&DESC);
-        let description = div_ele.next().map(|ele| ele.inner_html().trim().to_owned());
+        let description = div_ele
+            .next()
+            .map(|ele| ele.inner_html().trim().to_owned())
+            .and_then(empty2none);
 
-        let content = div_ele.next().map(|ele| ele.inner_html().trim().to_owned());
+        let content = div_ele
+            .next()
+            .map(|ele| ele.inner_html().trim().to_owned())
+            .and_then(empty2none);
 
         Book {
             title,
@@ -183,24 +203,24 @@ impl From<&str> for Book {
 
 #[derive(Debug, Encode, Decode)]
 pub struct Movie {
-    title: String,
+    pub title: String,
     pub cover: Option<String>,
-    source: Option<String>,
-    imdb: Option<String>,
-    directors: Vec<String>,
-    writers: Vec<String>,
-    stars: Vec<String>,
-    genres: Vec<String>,
-    countries: Vec<String>,
-    languages: Vec<String>,
-    runtime: Option<String>,
-    season: Option<String>,
-    episode: Option<String>,
-    episode_runtime: Option<String>,
-    release_dates: Vec<String>,
-    alias: Vec<String>,
-    tags: Vec<String>,
-    description: Option<String>,
+    pub source: Option<String>,
+    pub imdb: Option<String>,
+    pub directors: Vec<String>,
+    pub writers: Vec<String>,
+    pub stars: Vec<String>,
+    pub genres: Vec<String>,
+    pub countries: Vec<String>,
+    pub languages: Vec<String>,
+    pub runtime: Option<String>,
+    pub season: Option<String>,
+    pub episode: Option<String>,
+    pub episode_runtime: Option<String>,
+    pub release_dates: Vec<String>,
+    pub alias: Vec<String>,
+    pub tags: Vec<String>,
+    pub description: Option<String>,
 }
 
 impl From<&str> for Movie {
@@ -223,7 +243,8 @@ impl From<&str> for Movie {
             .unwrap()
             .value()
             .attr("href")
-            .map(|s| s.to_owned());
+            .map(|s| s.to_owned())
+            .and_then(empty2none);
 
         let source = fragment
             .select(&H5)
@@ -234,7 +255,8 @@ impl From<&str> for Movie {
             .unwrap()
             .value()
             .attr("href")
-            .map(|s| s.to_owned());
+            .map(|s| s.to_owned())
+            .and_then(empty2none);
 
         // details
         let mut details = fragment.select(&DETAILS);
@@ -244,7 +266,8 @@ impl From<&str> for Movie {
 
         let imdb = div_ele
             .next()
-            .and_then(|ele| ele.select(&A).next().map(|a| a.inner_html()));
+            .and_then(|ele| ele.select(&A).next().map(|a| a.inner_html()))
+            .and_then(empty2none);
 
         let directors = fragment
             .select(&DIRECTOR)
@@ -287,19 +310,23 @@ impl From<&str> for Movie {
 
         let runtime = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("片长：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("片长：").to_owned())
+            .and_then(empty2none);
 
         let season = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("季数：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("季数：").to_owned())
+            .and_then(empty2none);
 
         let episode = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("集数：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("集数：").to_owned())
+            .and_then(empty2none);
 
         let episode_runtime = div_ele
             .next()
-            .map(|ele| ele.inner_html().trim_start_matches("单集长度：").to_owned());
+            .map(|ele| ele.inner_html().trim_start_matches("单集长度：").to_owned())
+            .and_then(empty2none);
 
         let release_dates = div_ele
             .next()
@@ -321,7 +348,10 @@ impl From<&str> for Movie {
             .collect();
 
         let mut div_ele = fragment.select(&DESC);
-        let description = div_ele.next().map(|ele| ele.inner_html().trim().to_owned());
+        let description = div_ele
+            .next()
+            .map(|ele| ele.inner_html().trim().to_owned())
+            .and_then(empty2none);
 
         Movie {
             title,
@@ -343,5 +373,13 @@ impl From<&str> for Movie {
             tags,
             description,
         }
+    }
+}
+
+fn empty2none(input: String) -> Option<String> {
+    if input.is_empty() {
+        None
+    } else {
+        Some(input)
     }
 }
