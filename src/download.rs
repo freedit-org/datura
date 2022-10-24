@@ -58,9 +58,11 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
 
     async fn find_newest_id(db: &Tree, site: &str) -> u32 {
         let mut low = Self::last_id(db);
-        let mut high = low + 500;
+        let mut step = 255;
+        let mut high = low + step;
         while Self::is_ok(site, high).await.unwrap() {
-            high += 500;
+            step *= 2;
+            high += step;
         }
 
         while high - low > 2 {
