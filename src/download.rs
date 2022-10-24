@@ -56,7 +56,6 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
         }
     }
 
-    #[instrument(skip(db))]
     async fn find_newest_id(db: &Tree, site: &str) -> u32 {
         let mut low = Self::last_id(db);
         let mut high = low + 500;
@@ -83,7 +82,7 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
         newest_id
     }
 
-    #[instrument]
+    #[instrument(skip(site))]
     async fn is_ok(site: &str, id: u32) -> Result<bool, reqwest::Error> {
         let url = format!("{site}/{id}");
         let res = CLIENT.get(&url).send().await?.status().is_success();
