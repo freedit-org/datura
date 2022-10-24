@@ -56,6 +56,7 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
         }
     }
 
+    #[instrument(skip(db))]
     async fn find_newest_id(db: &Tree, site: &str) -> u32 {
         let mut low = Self::last_id(db);
         let mut high = low + 500;
@@ -72,11 +73,14 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
             };
         }
 
-        if Self::is_ok(site, low + 1).await.unwrap() {
+        let newest_id = if Self::is_ok(site, low + 1).await.unwrap() {
             low + 1
         } else {
             low
-        }
+        };
+
+        info!(%newest_id);
+        newest_id
     }
 
     #[instrument]
