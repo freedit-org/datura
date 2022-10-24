@@ -33,18 +33,9 @@ impl Cover for Book {
 #[async_trait]
 pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
     #[instrument(skip(db, filter_db))]
-    fn check_ids(min_id: Option<u32>, max_id: u32, db: &Tree, filter_db: &Tree) -> Vec<u32> {
-        let min_id = if let Some(min_id) = min_id {
-            min_id
-        } else if let Some((k, _)) = db.last().unwrap() {
-            let db_max_id = ivec_to_u32(&k);
-            info!(%db_max_id);
-            db_max_id
-        } else {
-            1
-        };
-
-        let ids: Vec<u32> = (min_id..=max_id)
+    async fn check_ids(db: &Tree, filter_db: &Tree, site: &str) -> Vec<u32> {
+        let max_id = Self::find_newest_id(db, site).await;
+        let ids: Vec<u32> = (1..=max_id)
             .filter(|id| {
                 !db.contains_key(u32_to_ivec(*id)).unwrap()
                     && !filter_db.contains_key(u32_to_ivec(*id)).unwrap()
@@ -53,6 +44,47 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
 
         info!("to be gotten = {}", ids.len());
         ids
+    }
+
+    fn last_id(db: &Tree) -> u32 {
+        if let Some((k, _)) = db.last().unwrap() {
+            let last_id = ivec_to_u32(&k);
+            info!(%last_id);
+            last_id
+        } else {
+            1
+        }
+    }
+
+    async fn find_newest_id(db: &Tree, site: &str) -> u32 {
+        let mut low = Self::last_id(db);
+        let mut high = low + 500;
+        while Self::is_ok(site, high).await.unwrap() {
+            high += 500;
+        }
+
+        while high - low > 2 {
+            let mid = low + (high - low) / 2;
+            if Self::is_ok(site, mid).await.unwrap() {
+                low = low + (high - low) / 2;
+            } else {
+                high = low + (high - low) / 2;
+            };
+        }
+
+        if Self::is_ok(site, low + 1).await.unwrap() {
+            low + 1
+        } else {
+            low
+        }
+    }
+
+    #[instrument]
+    async fn is_ok(site: &str, id: u32) -> Result<bool, reqwest::Error> {
+        let url = format!("{site}/{id}");
+        let res = CLIENT.get(&url).send().await?.status().is_success();
+        info!(%res);
+        Ok(res)
     }
 
     #[instrument(skip(db, db_404))]

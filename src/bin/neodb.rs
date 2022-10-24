@@ -21,12 +21,11 @@ async fn main() {
     info!(%db_url);
 
     //movies
-    let min_id = CONFIG.movie_min_id;
-    let max_id = CONFIG.movie_max_id;
+
     let site = "https://neodb.social/movies";
     let movies_tree = db.open_tree("movies").unwrap();
     let movie_404_tree = db.open_tree("movie_404").unwrap();
-    let ids = Movie::check_ids(min_id, max_id, &movies_tree, &movie_404_tree);
+    let ids = Movie::check_ids(&movies_tree, &movie_404_tree, site).await;
 
     let mut handers = vec![];
     let semaphore = Arc::new(Semaphore::new(100));
@@ -54,7 +53,7 @@ async fn main() {
     }
 
     let movie_covers_tree = db.open_tree("movie_covers").unwrap();
-    let ids = Movie::check_ids(min_id, max_id, &movie_covers_tree, &movie_404_tree);
+    let ids = Movie::check_ids(&movie_covers_tree, &movie_404_tree, site).await;
 
     let mut handers = vec![];
     for id in ids {
@@ -79,12 +78,10 @@ async fn main() {
     }
 
     // books
-    let min_id = CONFIG.book_min_id;
-    let max_id = CONFIG.book_max_id;
     let site = "https://neodb.social/books";
     let books_tree = db.open_tree("books").unwrap();
     let book_404_tree = db.open_tree("book_404").unwrap();
-    let ids = Book::check_ids(min_id, max_id, &books_tree, &book_404_tree);
+    let ids = Book::check_ids(&books_tree, &book_404_tree, site).await;
 
     let mut handers = vec![];
     let semaphore = Arc::new(Semaphore::new(100));
@@ -112,7 +109,7 @@ async fn main() {
     }
 
     let book_covers_tree = db.open_tree("book_covers").unwrap();
-    let ids = Book::check_ids(min_id, max_id, &book_covers_tree, &book_404_tree);
+    let ids = Book::check_ids(&book_covers_tree, &book_404_tree, site).await;
 
     let mut handers = vec![];
     for id in ids {

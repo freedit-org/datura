@@ -7,11 +7,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(Config::load_config);
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub db: String,
-    pub book_min_id: Option<u32>,
-    pub book_max_id: u32,
     pub book_cover_path: String,
-    pub movie_min_id: Option<u32>,
-    pub movie_max_id: u32,
     pub movie_cover_path: String,
 }
 
