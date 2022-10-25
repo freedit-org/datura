@@ -34,8 +34,13 @@ impl Cover for Book {
 pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
     #[instrument(skip(db, filter_db))]
     async fn check_ids(db: &Tree, filter_db: &Tree, site: &str) -> Vec<u32> {
-        let max_id = Self::find_newest_id(db, site).await;
-        let ids: Vec<u32> = (1..=max_id)
+        let last_id = Self::last_id(db);
+        info!(%last_id);
+
+        let newest_id = Self::find_newest_id(last_id, site).await;
+        info!(%newest_id);
+
+        let ids: Vec<u32> = (1..=newest_id)
             .filter(|id| {
                 !db.contains_key(u32_to_ivec(*id)).unwrap()
                     && !filter_db.contains_key(u32_to_ivec(*id)).unwrap()
@@ -48,16 +53,13 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
 
     fn last_id(db: &Tree) -> u32 {
         if let Some((k, _)) = db.last().unwrap() {
-            let last_id = ivec_to_u32(&k);
-            info!(%last_id);
-            last_id
+            ivec_to_u32(&k)
         } else {
             1
         }
     }
 
-    async fn find_newest_id(db: &Tree, site: &str) -> u32 {
-        let mut low = Self::last_id(db);
+    async fn find_newest_id(mut low: u32, site: &str) -> u32 {
         let mut step = 255;
         let mut high = low + step;
         while Self::is_ok(site, high).await.unwrap() {
@@ -68,20 +70,17 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
         while high - low > 2 {
             let mid = low + (high - low) / 2;
             if Self::is_ok(site, mid).await.unwrap() {
-                low = low + (high - low) / 2;
+                low = mid;
             } else {
-                high = low + (high - low) / 2;
+                high = mid;
             };
         }
 
-        let newest_id = if Self::is_ok(site, low + 1).await.unwrap() {
+        if Self::is_ok(site, low + 1).await.unwrap() {
             low + 1
         } else {
             low
-        };
-
-        info!(%newest_id);
-        newest_id
+        }
     }
 
     #[instrument(skip(site))]
