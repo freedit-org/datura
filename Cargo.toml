@@ -8,10 +8,11 @@ license = "MIT"
 async-trait = "*"
 bincode = "2.0.0-rc.2"
 once_cell = "*"
-reqwest = { version = "*" }
+reqwest = { version = "*", features = ["rustls-tls-webpki-roots"], default-features = false }
 scraper = { version = "0.13.0", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 sled = { version = "0.34.7", features = ["compression"] }
+sonic-channel = { version = "1.1.0", features = ["search", "ingest"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs"] }
 toml = "0.5"
 tracing = { version = "0.1", features = ["release_max_level_info", "max_level_info"] }
