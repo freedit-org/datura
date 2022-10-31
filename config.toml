@@ -1,3 +1,4 @@
 db = 'neodb.db'
 book_cover_path = 'book_covers'
 movie_cover_path = 'movie_covers'
+album_cover_path = 'album_covers'

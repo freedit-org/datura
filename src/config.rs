@@ -9,6 +9,7 @@ pub struct Config {
     pub db: String,
     pub book_cover_path: String,
     pub movie_cover_path: String,
+    pub album_cover_path: String,
 }
 
 impl Config {

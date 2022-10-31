@@ -1,10 +1,10 @@
-use crate::extract::{Book, Movie};
+use crate::extract::{Album, Book, Movie};
 use async_trait::async_trait;
 use bincode::{config::standard, Decode, Encode};
 use once_cell::sync::Lazy;
 use reqwest::{Client, StatusCode};
 use sled::{IVec, Tree};
-use std::{fmt::Debug, time::Duration};
+use std::time::Duration;
 use tracing::{error, info, instrument};
 
 pub static CLIENT: Lazy<Client> = Lazy::new(|| {
@@ -30,8 +30,14 @@ impl Cover for Book {
     }
 }
 
+impl Cover for Album {
+    fn cover(self) -> Option<String> {
+        self.cover
+    }
+}
+
 #[async_trait]
-pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
+pub trait Web: Encode + Decode + Cover + for<'a> From<&'a str> {
     #[instrument(skip(db, filter_db))]
     async fn check_ids(db: &Tree, filter_db: &Tree, site: &str) -> Vec<u32> {
         let last_id = Self::last_id(db);
@@ -181,6 +187,7 @@ pub trait Web: Debug + Encode + Decode + Cover + for<'a> From<&'a str> {
 
 impl Web for Movie {}
 impl Web for Book {}
+impl Web for Album {}
 
 /// convert `u32` to [IVec]
 fn u32_to_ivec(number: u32) -> IVec {
@@ -188,6 +195,6 @@ fn u32_to_ivec(number: u32) -> IVec {
 }
 
 /// convert [IVec] to u32
-fn ivec_to_u32(iv: &IVec) -> u32 {
+pub fn ivec_to_u32(iv: &IVec) -> u32 {
     u32::from_be_bytes(iv.to_vec().as_slice().try_into().unwrap())
 }

@@ -17,6 +17,10 @@ const DIRECTOR_STR: &str = r#"span[class="director"]"#;
 const PLAYWRIGHT_STR: &str = r#"span[class="playwright"]"#;
 const ACTOR_STR: &str = r#"span[class="actor"]"#;
 
+const ARTIST_STR: &str = r#"span[class="artist"]"#;
+const COMPANY_STR: &str = r#"span[class="company"]"#;
+const TRACK_STR: &str = r#"span[class="track-carousel__track-title"]"#;
+
 static TITLE: Lazy<Selector> = Lazy::new(|| Selector::parse(TITLE_STR).unwrap());
 static H5: Lazy<Selector> = Lazy::new(|| Selector::parse(H5_STR).unwrap());
 static A: Lazy<Selector> = Lazy::new(|| Selector::parse(A_STR).unwrap());
@@ -31,6 +35,10 @@ static DESC: Lazy<Selector> = Lazy::new(|| Selector::parse(DESC_STR).unwrap());
 static DIRECTOR: Lazy<Selector> = Lazy::new(|| Selector::parse(DIRECTOR_STR).unwrap());
 static PLAYWRIGHT: Lazy<Selector> = Lazy::new(|| Selector::parse(PLAYWRIGHT_STR).unwrap());
 static ACTOR: Lazy<Selector> = Lazy::new(|| Selector::parse(ACTOR_STR).unwrap());
+
+static ARTIST: Lazy<Selector> = Lazy::new(|| Selector::parse(ARTIST_STR).unwrap());
+static COMPANY: Lazy<Selector> = Lazy::new(|| Selector::parse(COMPANY_STR).unwrap());
+static TRACK: Lazy<Selector> = Lazy::new(|| Selector::parse(TRACK_STR).unwrap());
 
 #[derive(Debug, Encode, Decode)]
 pub struct Book {
@@ -372,6 +380,168 @@ impl From<&str> for Movie {
             alias,
             tags,
             description,
+        }
+    }
+}
+
+#[derive(Debug, Encode, Decode)]
+pub struct Album {
+    pub title: String,
+    pub cover: Option<String>,
+    pub source: Option<String>,
+    pub artists: Vec<String>,
+    pub companies: Vec<String>,
+    pub pub_time: Option<String>,
+    pub genre: Option<String>,
+    pub medium: Option<String>,
+    pub code: Option<String>,
+    pub format: Option<String>,
+    pub tags: Vec<String>,
+    pub description: Option<String>,
+    pub content: Option<String>,
+    pub tracks: Vec<String>,
+}
+
+impl From<&str> for Album {
+    fn from(html: &str) -> Self {
+        let fragment = Html::parse_fragment(html);
+
+        let title = fragment
+            .select(&TITLE)
+            .next()
+            .unwrap()
+            .inner_html()
+            .rsplit_once("| ")
+            .unwrap()
+            .1
+            .to_owned();
+
+        let cover = fragment
+            .select(&COVER)
+            .next()
+            .unwrap()
+            .value()
+            .attr("href")
+            .map(|s| s.to_owned())
+            .and_then(empty2none);
+
+        let source = fragment
+            .select(&H5)
+            .next()
+            .unwrap()
+            .select(&A)
+            .next()
+            .unwrap()
+            .value()
+            .attr("href")
+            .map(|s| s.to_owned())
+            .and_then(empty2none);
+
+        // details
+        let mut details = fragment.select(&DETAILS);
+
+        // first parts
+        let mut div_ele = details.next().unwrap().select(&DIV).skip(1);
+
+        let artists = fragment
+            .select(&ARTIST)
+            .map(|ele| ele.inner_html())
+            .collect();
+
+        let companies = fragment
+            .select(&COMPANY)
+            .map(|ele| ele.inner_html())
+            .collect();
+
+        let pub_time = div_ele
+            .nth(2)
+            .map(|ele| {
+                ele.inner_html()
+                    .trim()
+                    .trim_start_matches("发行日期：")
+                    .to_owned()
+            })
+            .and_then(empty2none);
+
+        let genre = div_ele
+            .nth(1)
+            .map(|ele| {
+                ele.inner_html()
+                    .trim()
+                    .trim_start_matches("流派：")
+                    .to_owned()
+            })
+            .and_then(empty2none);
+
+        // second parts
+        let mut div_ele = details.next().unwrap().select(&DIV);
+
+        let medium = div_ele
+            .next()
+            .map(|ele| {
+                ele.inner_html()
+                    .trim()
+                    .trim_start_matches("介质：")
+                    .to_owned()
+            })
+            .and_then(empty2none);
+
+        let code = div_ele
+            .next()
+            .map(|ele| {
+                ele.inner_html()
+                    .trim()
+                    .trim_start_matches("条形码：")
+                    .to_owned()
+            })
+            .and_then(empty2none);
+
+        let format = div_ele
+            .next()
+            .map(|ele| {
+                ele.inner_html()
+                    .trim()
+                    .trim_start_matches("专辑类型：")
+                    .to_owned()
+            })
+            .and_then(empty2none);
+
+        let tags = fragment
+            .select(&TAG)
+            .map(|ele| ele.select(&A).next().unwrap().inner_html())
+            .collect();
+
+        let mut div_ele = fragment.select(&DESC);
+        let description = div_ele
+            .next()
+            .map(|ele| ele.inner_html().trim().to_owned())
+            .and_then(empty2none);
+
+        let content = div_ele
+            .next()
+            .map(|ele| ele.inner_html().trim().to_owned())
+            .and_then(empty2none);
+
+        let tracks = fragment
+            .select(&TRACK)
+            .map(|ele| ele.inner_html().trim().to_owned())
+            .collect();
+
+        Album {
+            title,
+            cover,
+            source,
+            artists,
+            companies,
+            pub_time,
+            genre,
+            medium,
+            code,
+            format,
+            tags,
+            description,
+            content,
+            tracks,
         }
     }
 }
